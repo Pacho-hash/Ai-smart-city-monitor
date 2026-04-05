@@ -1,0 +1,205 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            }
+          ]
+        }
+      },
+      "id": "6b585620-90c9-416c-a65c-646970aaf620",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1760,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.openweathermap.org/data/2.5/weather?q=Riyadh,SA&appid=YOUR_OPENWEATHER_API_KEY&units=metric",
+        "options": {}
+      },
+      "id": "b258ce40-2061-4c31-80b9-7628450c6214",
+      "name": "Get Riyadh Weather",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -1536,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2d8f9c8d-1234-4a4b-9c8d-1234567890ab",
+              "name": "ai_prompt",
+              "value": "={{ 'You are a Smart City Operations AI for Riyadh, Saudi Arabia. Analyze this raw weather data: ' + JSON.stringify($json) + '. If conditions are extreme (Temperature over 45°C, high winds, sandstorms, or heavy rain), output exactly \\'ALERT:\\' followed by a short warning for logistics teams. If conditions are fine, output exactly \\'SAFE: Conditions are normal for city operations.\\' Do not use markdown.' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "513ab9c6-3c7e-42dd-8eb7-c5bcd64ca71d",
+      "name": "Format AI Prompt",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1312,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=YOUR_GEMINI_API_KEY",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"contents\": [\n    {\n      \"parts\": [\n        {\n          \"text\": {{(JSON.stringify($json.ai_prompt))}}\n        }\n      ]\n    }\n  ]\n}",
+        "options": {}
+      },
+      "id": "316135f5-f0c9-4174-ad31-15e6c8a9f813",
+      "name": "Gemini AI Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -1104,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.candidates[0].content.parts[0].text }}",
+              "operation": "contains",
+              "value2": "ALERT"
+            }
+          ]
+        }
+      },
+      "id": "38c9b83f-1de8-4972-9ae3-dcb3f1105a86",
+      "name": "Is it an Alert?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -880,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "YOUR_DISCORD_WEBHOOK_URL",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"content\": \"🚨 **Riyadh Smart City Alert System** 🚨\\n\\n**AI Analysis Report:**\\n{{ $json.candidates[0].content.parts[0].text }}\"\n}",
+        "options": {}
+      },
+      "id": "d939b903-a349-4cdf-8b78-3817dbac9f75",
+      "name": "Send Alert to Dashboard",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -656,
+        -96
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "ef2d560f-9c9b-4caf-acb7-9e1692231c75",
+      "name": "No Action Needed",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -656,
+        96
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Riyadh Weather",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Riyadh Weather": {
+      "main": [
+        [
+          {
+            "node": "Format AI Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format AI Prompt": {
+      "main": [
+        [
+          {
+            "node": "Gemini AI Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini AI Analysis": {
+      "main": [
+        [
+          {
+            "node": "Is it an Alert?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is it an Alert?": {
+      "main": [
+        [
+          {
+            "node": "Send Alert to Dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Action Needed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "6f61d50a-1beb-4ec7-b5ce-4388cc15b80e",
+  "meta": {
+    "instanceId": "2fb951104860c4ada4de18abc013b6b5b11905944dfa298a786ed918ec70122c"
+  },
+  "id": "PrihkjklZNY6I915",
+  "tags": []
+}
